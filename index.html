@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="룸메이트와 함께 지출을 기록하고 한 번에 정산하세요."
+    >
+    <title>모아씀 | 룸메이트 공동 지출 정산</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./script.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="./index.html" aria-label="모아씀 홈">
+          <span class="brand-mark" aria-hidden="true">m</span>
+          <span>모아씀</span>
+        </a>
+        <span class="topbar-caption">우리 집 공동 장부</span>
+      </header>
+
+      <main>
+        <p id="state-notice" class="state-notice" role="status" aria-live="polite"></p>
+
+        <div class="dashboard-grid">
+          <form id="expense-form" class="shopping-form-grid">
+            <section class="card expense-card" aria-labelledby="expense-title">
+              <div class="section-heading">
+                <div>
+                  <p class="section-kicker">SHARED EXPENSE</p>
+                  <h2 id="expense-title">공동 비용 계산</h2>
+                </div>
+                <span class="heading-icon" aria-hidden="true">＋</span>
+              </div>
+              <label class="field-label" for="expense-name">청구 금액</label>
+              <input
+                id="expense-name"
+                name="title"
+                class="text-input"
+                type="text"
+                maxlength="60"
+                placeholder="예: 토요일 마트 장보기"
+                autocomplete="off"
+                required
+              >
+
+              <label class="field-label" for="expense-amount">결제 금액</label>
+              <div class="amount-input-wrap">
+                <input
+                  id="expense-amount"
+                  name="amount"
+                  class="text-input amount-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="0"
+                  inputmode="numeric"
+                  required
+                >
+                <span aria-hidden="true">원</span>
+              </div>
+
+              <label class="field-label" for="payer">결제한 사람</label>
+              <select id="payer" name="payer" class="text-input select-input"></select>
+
+              <fieldset class="participant-fieldset">
+                <legend class="field-label">정산 포함 인원</legend>
+                <div id="split-participants" class="participant-options"></div>
+              </fieldset>
+            </section>
+
+            <section class="card grocery-card" aria-labelledby="grocery-title">
+              <div class="section-heading">
+                <div>
+                  <p class="section-kicker">GROCERY ITEMS</p>
+                  <h2 id="grocery-title">장보기 기록</h2>
+                </div>
+                <span class="heading-icon" aria-hidden="true">◌</span>
+              </div>
+              <div class="grocery-fieldset">
+                <div class="grocery-entry-fields">
+                  <label class="visually-hidden" for="grocery-name">식품 이름</label>
+                  <input
+                    id="grocery-name"
+                    class="text-input"
+                    type="text"
+                    maxlength="50"
+                    placeholder="예: 우유"
+                    autocomplete="off"
+                  >
+                  <label class="visually-hidden" for="grocery-expiration">유통기한</label>
+                  <input
+                    id="grocery-expiration"
+                    class="text-input date-input"
+                    type="date"
+                    aria-label="유통기한 (선택)"
+                  >
+                  <label class="visually-hidden" for="grocery-storage-type">보관 방법</label>
+                  <select id="grocery-storage-type" class="text-input storage-input" aria-label="보관 방법">
+                    <option value="refrigerated">냉장 보관</option>
+                    <option value="room-temperature">실온 보관</option>
+                  </select>
+                  <button id="add-grocery-item" class="secondary-button" type="button">추가</button>
+                </div>
+                <div id="grocery-draft-list" class="grocery-draft-list"></div>
+                <p class="field-hint grocery-field-hint">유통기한을 모르면 비워둘 수 있어요. 등록 후에도 상태를 수정할 수 있습니다.</p>
+              </div>
+
+              <button class="primary-button" type="submit">
+                장보기 기록하기 <span aria-hidden="true">→</span>
+              </button>
+            </section>
+          </form>
+
+          <section class="card settlement-card" aria-labelledby="settlement-title">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">YOUR BALANCE</p>
+                <h2 id="settlement-title">현재 정산</h2>
+              </div>
+              <span class="heading-icon balance-icon" aria-hidden="true">↗</span>
+            </div>
+            <div id="member-balances" class="balance-list"></div>
+            <div class="transfer-section">
+              <div class="transfer-heading">
+                <h3>대기 중인 송금</h3>
+                <span id="transfer-count" class="transfer-count">0건</span>
+              </div>
+              <p class="settlement-hint">각 송금 행에서 실제 송금을 마친 건만 개별 완료 처리할 수 있어요.</p>
+              <div id="transfer-list" class="transfer-list"></div>
+              <div class="completed-transfer-section">
+                <div class="transfer-heading">
+                  <h3>완료한 송금</h3>
+                  <span id="completed-transfer-count" class="transfer-count">0건</span>
+                </div>
+                <div id="completed-transfer-list" class="completed-transfer-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card members-card" aria-labelledby="members-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">ROOMMATES</p>
+                <h2 id="members-title">함께 사는 사람</h2>
+              </div>
+              <span id="member-count" class="member-count"></span>
+            </div>
+            <div id="member-list" class="member-list"></div>
+            <button id="add-member" class="text-button" type="button">
+              <span aria-hidden="true">＋</span> 사람 추가하기
+            </button>
+          </section>
+
+          <section class="card history-card" aria-labelledby="history-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">EXPENSE HISTORY</p>
+                <h2 id="history-title">지출 내역</h2>
+              </div>
+              <button id="clear-expenses" class="text-button danger-button" type="button" hidden>
+                전체 삭제
+              </button>
+            </div>
+            <div id="expense-list" class="expense-list"></div>
+          </section>
+
+          <section class="card fridge-card" aria-labelledby="fridge-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">SHARED FRIDGE</p>
+                <h2 id="fridge-title">공용 냉장고</h2>
+              </div>
+              <span id="fridge-count" class="member-count"></span>
+            </div>
+            <p id="fridge-summary" class="section-description"></p>
+            <div id="fridge-list" class="fridge-list"></div>
+            <section class="menu-suggestion" aria-labelledby="menu-suggestion-title">
+              <div class="menu-suggestion-heading">
+                <span class="menu-sparkle" aria-hidden="true">✦</span>
+                <div>
+                  <h3 id="menu-suggestion-title">임박 식품으로 메뉴 제안</h3>
+                  
+                </div>
+              </div>
+              <p id="menu-suggestion-text" class="menu-suggestion-text">
+              </p>
+              <p class="llm-footnote"></p>
+            </section>
+          </section>
+
+          <section class="card shopping-card" aria-labelledby="shopping-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">NEXT SHOPPING</p>
+                <h2 id="shopping-title">다음 장보기</h2>
+              </div>
+              <span id="shopping-count" class="member-count"></span>
+            </div>
+            <form id="shopping-form" class="shopping-form">
+              <label class="visually-hidden" for="shopping-item-name">장보기 목록 항목</label>
+              <input
+                id="shopping-item-name"
+                class="text-input"
+                type="text"
+                maxlength="50"
+                placeholder="다음에 살 품목을 적어주세요"
+                autocomplete="off"
+                required
+              >
+              <button class="secondary-button" type="submit">추가</button>
+            </form>
+            <div id="shopping-list" class="shopping-list"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
