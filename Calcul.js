@@ -1,3 +1,28 @@
+//유통기한 임박 계산 함수
+export function getExpiryInfo(expirationDate) {
+  if (!expirationDate) {
+    return { label: "기한 미입력", className: "expiry-unknown", sortOrder: 3 };
+  }
+
+  const [year, month, day] = expirationDate.split("-").map(Number);
+  const expiration = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysUntilExpiry = Math.round((expiration - today) / 86_400_000);
+
+  if (daysUntilExpiry < 0) {
+    return { label: "폐기 확인", className: "expiry-expired", sortOrder: 0 };
+  }
+  if (daysUntilExpiry <= 2) {
+    return {
+      label: daysUntilExpiry === 0 ? "오늘까지" : `${daysUntilExpiry}일 이내`,
+      className: "expiry-soon",
+      sortOrder: 1,
+    };
+  }
+  return { label: "여유", className: "expiry-fresh", sortOrder: 2 };
+}
+
 //공동 비용 계산 규칙 함수
 export function calculateShares(amount, participants, payer) {
   if (!Number.isSafeInteger(amount) || amount <= 0) {
