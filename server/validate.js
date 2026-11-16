@@ -38,6 +38,10 @@ export function validateGroceryItem(item) {
 export function validateExpense(body, members) {
   if (!body || typeof body !== "object") throw bad("요청 형식이 올바르지 않습니다.");
   const { title, amount, payer, participants, groceryItems = [] } = body;
+  const category = body.category ?? "기타";
+  if (!["공과금", "월세", "장보기", "기타"].includes(category)) {
+    throw bad("카테고리는 공과금, 월세, 장보기, 기타 중에서 선택해 주세요.");
+  }
   if (!isName(title, 50)) throw bad("지출 내용은 1~50자로 입력해 주세요.");
   if (!Number.isSafeInteger(amount) || amount <= 0) throw bad("금액은 1원 이상의 정수로 입력해 주세요.");
   if (!members.includes(payer)) throw bad("결제한 사람이 멤버 목록에 없습니다.");
@@ -51,6 +55,7 @@ export function validateExpense(body, members) {
   return {
     title: title.trim(),
     amount,
+    category,
     payer,
     participants,
     groceryItems: groceryItems.map(validateGroceryItem),

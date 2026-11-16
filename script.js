@@ -1,12 +1,19 @@
 import { calculateShares } from "./Calcul.js";
 import { api } from "./api.js";
 const wonFormatter = new Intl.NumberFormat("ko-KR");
+const expenseCategories = ["공과금", "월세", "장보기", "기타"];
+const monthFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "2-digit",
+  timeZone: "Asia/Seoul",
+});
 
 const elements = {
   stateNotice: document.querySelector("#state-notice"),
   form: document.querySelector("#expense-form"),
   expenseName: document.querySelector("#expense-name"),
   expenseAmount: document.querySelector("#expense-amount"),
+  expenseCategory: document.querySelector("#expense-category"),
   groceryName: document.querySelector("#grocery-name"),
   groceryExpiration: document.querySelector("#grocery-expiration"),
   groceryStorageType: document.querySelector("#grocery-storage-type"),
@@ -24,6 +31,7 @@ const elements = {
   completedTransferList: document.querySelector("#completed-transfer-list"),
   expenseList: document.querySelector("#expense-list"),
   clearExpenses: document.querySelector("#clear-expenses"),
+  monthlyCategoryTotals: document.querySelector("#monthly-category-totals"),
   fridgeCount: document.querySelector("#fridge-count"),
   fridgeSummary: document.querySelector("#fridge-summary"),
   fridgeList: document.querySelector("#fridge-list"),
@@ -314,7 +322,9 @@ function renderExpenses() {
       createElement(
         "p",
         "expense-meta",
-        `${dateLabel}${expense.payer} 결제 · ${expense.participants.join(", ")} 부담${
+        `${expense.category ?? "기타"} · ${dateLabel}${expense.payer} 결제 · ${
+          expense.participants.join(", ")
+        } 부담${
           expense.groceryItems?.length
             ? ` · 식품 ${expense.groceryItems.join(", ")}`
             : ""
@@ -344,6 +354,74 @@ function renderExpenses() {
     row.append(info, right);
     elements.expenseList.append(row);
   });
+}
+
+function renderMonthlyCategoryTotals() {
+  elements.monthlyCategoryTotals.replaceChildren();
+
+  const totalsByMonth = new Map();
+  expenses.forEach((expense) => {
+    const date = new Date(expense.createdAt);
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const dateParts = Object.fromEntries(
+      monthFormatter
+        .formatToParts(date)
+        .filter(({ type }) => type === "year" || type === "month")
+        .map(({ type, value }) => [type, value]),
+    );
+    const monthKey = `${dateParts.year}-${dateParts.month}`;
+    if (!totalsByMonth.has(monthKey)) {
+      totalsByMonth.set(
+        monthKey,
+        new Map(expenseCategories.map((category) => [category, 0n])),
+      );
+    }
+
+    const monthlyTotals = totalsByMonth.get(monthKey);
+    const category = expenseCategories.includes(expense.category)
+      ? expense.category
+      : "기타";
+    monthlyTotals.set(
+      category,
+      monthlyTotals.get(category) + BigInt(expense.amount),
+    );
+  });
+
+  if (totalsByMonth.size === 0) {
+    elements.monthlyCategoryTotals.append(
+      createElement("p", "empty-state", "월별로 집계할 지출 내역이 없어요."),
+    );
+    return;
+  }
+
+  [...totalsByMonth.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .forEach(([monthKey, monthlyTotals]) => {
+      const month = createElement("article", "monthly-category-month");
+      const [year, monthNumber] = monthKey.split("-");
+      month.append(
+        createElement("h3", "monthly-category-heading", `${year}년 ${Number(monthNumber)}월`),
+      );
+
+      const rows = createElement("div", "monthly-category-rows");
+      expenseCategories.forEach((category) => {
+        const row = createElement("div", "monthly-category-row");
+        row.append(
+          createElement("span", "monthly-category-name", category),
+          createElement(
+            "span",
+            "monthly-category-amount",
+            formatWon(monthlyTotals.get(category)),
+          ),
+        );
+        rows.append(row);
+      });
+      month.append(rows);
+      elements.monthlyCategoryTotals.append(month);
+    });
 }
 
 function getExpiryInfo(expirationDate) {
@@ -561,6 +639,7 @@ function render() {
   renderParticipantControls();
   renderSettlement();
   renderExpenses();
+  renderMonthlyCategoryTotals();
   renderGroceryDrafts();
   renderFridge();
   renderShoppingList();
@@ -628,6 +707,7 @@ elements.addGroceryItem.addEventListener("click", () => {
 
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
+  const includeGroceryItems = event.submitter?.id === "add-grocery-expense";
   const rosterError = getRosterError();
   if (rosterError) {
     showNotice(rosterError);
@@ -667,18 +747,24 @@ elements.form.addEventListener("submit", (event) => {
   const expense = {
     title,
     amount,
+    category: elements.expenseCategory.value,
     payer,
     participants,
-    groceryItems: groceryDraftItems.map(({ name, expirationDate, storageType }) => ({
-      name,
-      expirationDate,
-      storageType,
-    })),
+    groceryItems: includeGroceryItems
+      ? groceryDraftItems.map(({ name, expirationDate, storageType }) => ({
+          name,
+          expirationDate,
+          storageType,
+        }))
+      : [],
   };
   void runApiAction(async () => {
     await api.addExpense(expense);
     elements.form.reset();
-    groceryDraftItems = [];
+    if (includeGroceryItems) {
+      groceryDraftItems = [];
+      renderGroceryDrafts();
+    }
   });
 });
 

@@ -609,6 +609,51 @@ a:focus-visible {
   gap: 0;
 }
 
+.monthly-category-list {
+  display: grid;
+  gap: 16px;
+}
+
+.monthly-category-month + .monthly-category-month {
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.monthly-category-heading {
+  margin: 0 0 10px;
+  color: #45554b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.monthly-category-rows {
+  display: grid;
+  gap: 7px;
+}
+
+.monthly-category-row {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: #f7f9f6;
+}
+
+.monthly-category-name {
+  color: #68766d;
+  font-size: 12px;
+}
+
+.monthly-category-amount {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .expense-row {
   display: flex;
   align-items: center;
@@ -1082,16 +1127,20 @@ a:focus-visible {
     grid-row: 3;
   }
 
-  .fridge-card {
+  .monthly-summary-card {
     grid-row: 4;
   }
 
-  .shopping-card {
+  .fridge-card {
     grid-row: 5;
   }
 
-  .members-card {
+  .shopping-card {
     grid-row: 6;
+  }
+
+  .members-card {
+    grid-row: 7;
   }
 
   .grocery-entry-fields {
