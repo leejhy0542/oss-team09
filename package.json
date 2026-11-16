@@ -1,0 +1,16 @@
+{
+  "name": "moasseum",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "룸메이트 공동 지출 정산과 공용 냉장고 관리 웹 앱",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --watch --env-file-if-exists=.env server/index.js",
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "engines": { "node": ">=20.6" },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

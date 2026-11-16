@@ -983,9 +983,13 @@ a:focus-visible {
   color: #477451;
 }
 
-.expiry-unknown,
-.expiry-discarded {
+.expiry-unknown {
   background: #f0f2ef;
+  color: #7d887f;
+}
+
+.expiry-discarded {
+  background: #e8c7bf;
   color: #7d887f;
 }
 
