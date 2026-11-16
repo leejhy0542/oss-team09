@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { calculateMinimumTransfers } from "../Calcul.js";
+import { selectExpiringIngredients } from "./menu/menu-rules.mjs";
 import {
   calculateBalances,
   getExpiryStatus,
@@ -193,10 +194,10 @@ export function createApp({ store, llm, now = () => new Date() }) {
   // llm이 없거나 실패하면 200으로 suggestion: null을 줘서 나머지 기능은 그대로 동작한다.
   api.post("/fridge/menu-suggestion", async (req, res) => {
     const today = todayInSeoul(now());
-    const soonItems = store
-      .get()
-      .fridgeItems.filter((i) => i.status === "available" && getExpiryStatus(i.expirationDate, today).status === "soon")
-      .map((i) => i.name);
+    const soonItems = selectExpiringIngredients(
+      store.get().fridgeItems,
+      today,
+    ).map((item) => item.name);
     if (soonItems.length === 0) return res.json({ items: [], suggestion: null, reason: "no-items" });
     if (!llm?.enabled) return res.json({ items: soonItems, suggestion: null, reason: "llm-disabled" });
     const suggestion = await llm.suggestMenu(soonItems);
