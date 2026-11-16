@@ -1078,12 +1078,8 @@ a:focus-visible {
     grid-row: 2;
   }
 
-  .members-card {
-    grid-row: 3;
-  }
-
   .history-card {
-    grid-row: 6;
+    grid-row: 3;
   }
 
   .fridge-card {
@@ -1092,6 +1088,10 @@ a:focus-visible {
 
   .shopping-card {
     grid-row: 5;
+  }
+
+  .members-card {
+    grid-row: 6;
   }
 
   .grocery-entry-fields {
