@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectExpiringIngredients } from "../server/menu/menu-rules.mjs";
+import { selectExpiringIngredients } from "../server/menu/menu-rules.js";
 
 const TODAY = "2026-11-16";
 

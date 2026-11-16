@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { calculateMinimumTransfers } from "../Calcul.js";
-import { selectExpiringIngredients } from "./menu/menu-rules.mjs";
+import { selectExpiringIngredients } from "./menu/menu-rules.js";
 import {
   calculateBalances,
   getExpiryStatus,

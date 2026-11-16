@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
 import { createStore } from "./store.js";
-import { createLlmClient } from "./menu/llm-client.mjs";
+import { createLlmClient } from "./menu/llm-client.js";
 
 const dataFile = process.env.DATA_FILE || fileURLToPath(new URL("../data/state.json", import.meta.url));
 const port = Number(process.env.PORT) || 3000;

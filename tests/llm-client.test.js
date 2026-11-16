@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLlmClient } from "../server/menu/llm-client.mjs";
+import { createLlmClient } from "../server/menu/llm-client.js";
 
 // 모든 테스트는 가짜 키·모델·통신 함수를 사용, 환경변수나 실제 API를 사용하지 않음
 // 실제 API 호출 테스트는 별도의 수동 테스트로 확인
