@@ -1,8 +1,5 @@
-import { calculateMinimumTransfers, calculateShares } from "./Calcul.js";
-
-const STORAGE_KEY = "moasseum-expense-ledger";
-const FRIDGE_STATUS_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_MEMBERS = ["나", "룸메이트 1"];
+import { calculateShares } from "./Calcul.js";
+import { api } from "./api.js";
 const wonFormatter = new Intl.NumberFormat("ko-KR");
 
 const elements = {
@@ -36,121 +33,13 @@ const elements = {
   shoppingList: document.querySelector("#shopping-list"),
 };
 
-function isValidSavedState(value) {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    Array.isArray(value.members) &&
-    value.members.length >= 2 &&
-    value.members.length <= 4 &&
-    value.members.every((name) => typeof name === "string" && name.trim() !== "") &&
-    new Set(value.members).size === value.members.length &&
-    Array.isArray(value.expenses) &&
-    value.expenses.every(
-      (expense) =>
-        expense !== null &&
-        typeof expense === "object" &&
-        typeof expense.id === "string" &&
-        typeof expense.title === "string" &&
-        Number.isSafeInteger(expense.amount) &&
-        expense.amount > 0 &&
-        typeof expense.payer === "string" &&
-        Array.isArray(expense.participants) &&
-        expense.participants.length > 0 &&
-        expense.participants.every((name) => typeof name === "string") &&
-        (expense.groceryItems === undefined ||
-          (Array.isArray(expense.groceryItems) &&
-            expense.groceryItems.every((name) => typeof name === "string"))) &&
-        typeof expense.createdAt === "string",
-    ) &&
-    (value.settledExpenseIds === undefined ||
-      (Array.isArray(value.settledExpenseIds) &&
-        value.settledExpenseIds.every((id) => typeof id === "string"))) &&
-    (value.completedTransfers === undefined ||
-      (Array.isArray(value.completedTransfers) &&
-        value.completedTransfers.every(
-          (transfer) =>
-            transfer !== null &&
-            typeof transfer === "object" &&
-            typeof transfer.id === "string" &&
-            typeof transfer.from === "string" &&
-            typeof transfer.to === "string" &&
-            Number.isSafeInteger(transfer.amount) &&
-            transfer.amount > 0 &&
-            typeof transfer.completedAt === "string",
-        ))) &&
-    (value.fridgeItems === undefined ||
-      (Array.isArray(value.fridgeItems) &&
-        value.fridgeItems.every(
-          (item) =>
-            item !== null &&
-            typeof item === "object" &&
-            typeof item.id === "string" &&
-            typeof item.name === "string" &&
-            typeof item.expirationDate === "string" &&
-            (item.expirationDate === "" || isValidDate(item.expirationDate)) &&
-            (item.storageType === undefined ||
-              ["refrigerated", "room-temperature"].includes(item.storageType)) &&
-            typeof item.purchasedAt === "string" &&
-            typeof item.expenseId === "string" &&
-            ["available", "consumed", "discarded"].includes(item.status) &&
-            (item.statusChangedAt === undefined ||
-              (typeof item.statusChangedAt === "string" &&
-                !Number.isNaN(Date.parse(item.statusChangedAt)))),
-        ))) &&
-    (value.shoppingList === undefined ||
-      (Array.isArray(value.shoppingList) &&
-        value.shoppingList.every(
-          (item) =>
-            item !== null &&
-            typeof item === "object" &&
-            typeof item.id === "string" &&
-            typeof item.name === "string",
-        )))
-  );
-}
-
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === null) {
-      return {
-        members: [...DEFAULT_MEMBERS],
-        expenses: [],
-        settledExpenseIds: [],
-        completedTransfers: [],
-        fridgeItems: [],
-        shoppingList: [],
-      };
-    }
-
-    const value = JSON.parse(saved);
-    if (!isValidSavedState(value)) {
-      throw new Error("저장된 지출 정보의 형식이 올바르지 않습니다.");
-    }
-    return value;
-  } catch (error) {
-    elements.stateNotice.textContent =
-      `저장된 정보를 불러오지 못했습니다. 새 장부로 시작합니다. (${error.message})`;
-    return {
-      members: [...DEFAULT_MEMBERS],
-      expenses: [],
-      settledExpenseIds: [],
-      completedTransfers: [],
-      fridgeItems: [],
-      shoppingList: [],
-    };
-  }
-}
-
-const savedState = loadState();
-let { members, expenses } = savedState;
-let settledExpenseIds = savedState.settledExpenseIds ?? [];
-let completedTransfers = savedState.completedTransfers ?? [];
-let fridgeItems = savedState.fridgeItems ?? [];
-let shoppingList = savedState.shoppingList ?? [];
+let members = [];
+let expenses = [];
+let settledExpenseIds = [];
+let fridgeItems = [];
+let shoppingList = [];
+let settlement;
 let groceryDraftItems = [];
-let fridgeCleanupTimer;
 
 function formatWon(amount) {
   return `₩${wonFormatter.format(amount)}`;
@@ -173,23 +62,34 @@ function showNotice(message) {
   elements.stateNotice.textContent = message;
 }
 
-function saveState() {
+async function refreshState() {
+  const state = await api.getState();
+  members = state.members;
+  expenses = state.expenses;
+  settledExpenseIds = state.settledExpenseIds;
+  fridgeItems = state.fridgeItems;
+  shoppingList = state.shoppingList;
+  settlement = state.settlement;
+  render();
+}
+
+async function runApiAction(action) {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        members,
-        expenses,
-        settledExpenseIds,
-        completedTransfers,
-        fridgeItems,
-        shoppingList,
-      }),
-    );
+    await action();
+    await refreshState();
     showNotice("");
   } catch (error) {
-    showNotice(`브라우저에 기록을 저장하지 못했습니다. (${error.message})`);
+    showNotice(error.message);
   }
+}
+
+async function saveMembers(nextMembers) {
+  const rosterError = getRosterError(nextMembers);
+  if (rosterError) {
+    showNotice(rosterError);
+    return;
+  }
+  await runApiAction(() => api.setMembers(nextMembers));
 }
 
 function createElement(tagName, className, text) {
@@ -203,14 +103,14 @@ function createElement(tagName, className, text) {
   return element;
 }
 
-function getRosterError() {
-  if (members.length < 2 || members.length > 4) {
+function getRosterError(roster = members) {
+  if (roster.length < 2 || roster.length > 4) {
     return "함께 사는 사람은 2~4명이어야 합니다.";
   }
-  if (members.some((name) => name.trim() === "")) {
+  if (roster.some((name) => name.trim() === "")) {
     return "사람 이름을 비워 둘 수 없습니다.";
   }
-  if (new Set(members).size !== members.length) {
+  if (new Set(roster).size !== roster.length) {
     return "사람 이름은 서로 다르게 입력해 주세요.";
   }
   return "";
@@ -237,9 +137,8 @@ function renderMemberEditor() {
     removeButton.setAttribute("aria-label", `${name || `${index + 1}번째 사람`} 삭제`);
     removeButton.disabled = locked || members.length <= 2;
     removeButton.addEventListener("click", () => {
-      members = members.filter((_, memberIndex) => memberIndex !== index);
-      render();
-      saveState();
+      const nextMembers = members.filter((_, memberIndex) => memberIndex !== index);
+      void saveMembers(nextMembers);
     });
     row.append(removeButton);
     elements.memberList.append(row);
@@ -268,60 +167,6 @@ function renderParticipantControls() {
   });
 }
 
-function calculateBalances() {
-  const balances = new Map(members.map((name) => [name, 0]));
-
-  getPendingExpenses().forEach((expense) => {
-    if (!balances.has(expense.payer)) {
-      balances.set(expense.payer, 0);
-    }
-    const payerBalance = balances.get(expense.payer) + expense.amount;
-    if (!Number.isSafeInteger(payerBalance)) {
-      throw new RangeError("누적 지출 금액이 안전한 계산 범위를 초과했습니다.");
-    }
-    balances.set(expense.payer, payerBalance);
-
-    const shares = calculateShares(
-      expense.amount,
-      expense.participants,
-      expense.payer,
-    );
-    shares.forEach(({ name, amount }) => {
-      if (!balances.has(name)) {
-        balances.set(name, 0);
-      }
-      const balance = balances.get(name) - amount;
-      if (!Number.isSafeInteger(balance)) {
-        throw new RangeError("누적 부담 금액이 안전한 계산 범위를 초과했습니다.");
-      }
-      balances.set(name, balance);
-    });
-  });
-
-  completedTransfers.forEach(({ from, to, amount }) => {
-    if (!balances.has(from)) {
-      balances.set(from, 0);
-    }
-    if (!balances.has(to)) {
-      balances.set(to, 0);
-    }
-    const senderBalance = balances.get(from) + amount;
-    const recipientBalance = balances.get(to) - amount;
-    if (!Number.isSafeInteger(senderBalance) || !Number.isSafeInteger(recipientBalance)) {
-      throw new RangeError("완료된 송금이 안전한 계산 범위를 초과했습니다.");
-    }
-    balances.set(from, senderBalance);
-    balances.set(to, recipientBalance);
-  });
-
-  return Object.fromEntries(balances);
-}
-
-function getPendingExpenses() {
-  const settledIds = new Set(settledExpenseIds);
-  return expenses.filter((expense) => !settledIds.has(expense.id));
-}
-
 function completeTransfer(from, to, amount) {
   if (
     typeof from !== "string" ||
@@ -334,18 +179,7 @@ function completeTransfer(from, to, amount) {
     return;
   }
 
-  completedTransfers = [
-    ...completedTransfers,
-    {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      from,
-      to,
-      amount,
-      completedAt: new Date().toISOString(),
-    },
-  ];
-  render();
-  saveState();
+  void runApiAction(() => api.completeTransfer({ from, to, amount }));
 }
 
 function renderSettlement() {
@@ -354,10 +188,9 @@ function renderSettlement() {
   elements.completedTransferList.replaceChildren();
 
   try {
-    const balances = calculateBalances();
-    const transfers = calculateMinimumTransfers(balances);
+    const { balances, transfers, completedTransfers: completed } = settlement;
     elements.transferCount.textContent = `${transfers.length}건`;
-    elements.completedTransferCount.textContent = `${completedTransfers.length}건`;
+    elements.completedTransferCount.textContent = `${completed.length}건`;
 
     members.forEach((name) => {
       const balance = balances[name] ?? 0;
@@ -418,12 +251,12 @@ function renderSettlement() {
       });
     }
 
-    if (completedTransfers.length === 0) {
+    if (completed.length === 0) {
       elements.completedTransferList.append(
         createElement("p", "empty-state", "송금을 완료하면 여기에 기록돼요."),
       );
     } else {
-      [...completedTransfers].reverse().forEach((transfer) => {
+      [...completed].reverse().forEach((transfer) => {
         const row = createElement("div", "transfer-row completed-transfer-row");
         const route = createElement("div", "transfer-route");
         route.append(
@@ -505,10 +338,7 @@ function renderExpenses() {
     deleteButton.type = "button";
     deleteButton.setAttribute("aria-label", `${expense.title} 지출 삭제`);
     deleteButton.addEventListener("click", () => {
-      expenses = expenses.filter((item) => item.id !== expense.id);
-      settledExpenseIds = settledExpenseIds.filter((id) => id !== expense.id);
-      render();
-      saveState();
+      void runApiAction(() => api.deleteExpense(expense.id));
     });
     right.append(deleteButton);
     row.append(info, right);
@@ -571,66 +401,11 @@ function renderGroceryDrafts() {
   });
 }
 
-function removeExpiredFridgeItems() {
-  const now = Date.now();
-  const remainingItems = fridgeItems.filter((item) => {
-    if (item.status === "available" || !item.statusChangedAt) {
-      return true;
-    }
-    const statusChangedAt = Date.parse(item.statusChangedAt);
-    return (
-      Number.isNaN(statusChangedAt) ||
-      now - statusChangedAt < FRIDGE_STATUS_RETENTION_MS
-    );
-  });
-  const removedItems = remainingItems.length !== fridgeItems.length;
-  fridgeItems = remainingItems;
-  return removedItems;
-}
-
-function scheduleFridgeCleanup() {
-  window.clearTimeout(fridgeCleanupTimer);
-  const nextExpiration = fridgeItems.reduce((earliest, item) => {
-    if (item.status === "available" || !item.statusChangedAt) {
-      return earliest;
-    }
-    const expiration =
-      Date.parse(item.statusChangedAt) + FRIDGE_STATUS_RETENTION_MS;
-    return Number.isNaN(expiration)
-      ? earliest
-      : Math.min(earliest, expiration);
-  }, Number.POSITIVE_INFINITY);
-  if (!Number.isFinite(nextExpiration)) {
-    return;
-  }
-
-  fridgeCleanupTimer = window.setTimeout(() => {
-    if (removeExpiredFridgeItems()) {
-      render();
-      saveState();
-    }
-    scheduleFridgeCleanup();
-  }, Math.max(0, nextExpiration - Date.now()));
-}
-
-function addToShoppingList(name) {
+function isShoppingItemListed(name) {
   const normalizedName = name.trim().toLocaleLowerCase("ko-KR");
-  if (
-    normalizedName === "" ||
-    shoppingList.some(
-      (item) => item.name.trim().toLocaleLowerCase("ko-KR") === normalizedName,
-    )
-  ) {
-    return false;
-  }
-  shoppingList = [
-    ...shoppingList,
-    {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name: name.trim(),
-    },
-  ];
-  return true;
+  return shoppingList.some(
+    (item) => item.name.trim().toLocaleLowerCase("ko-KR") === normalizedName,
+  );
 }
 
 function renderFridge() {
@@ -738,10 +513,11 @@ function renderFridge() {
       const restockButton = createElement("button", "small-action-button", "다음 장보기에 담기");
       restockButton.type = "button";
       restockButton.addEventListener("click", () => {
-        if (addToShoppingList(item.name)) {
-          renderShoppingList();
-          saveState();
+        if (isShoppingItemListed(item.name)) {
+          showNotice("이미 장보기 목록에 있는 품목입니다.");
+          return;
         }
+        void runApiAction(() => api.addShoppingItem(item.name));
       });
       actions.append(restockButton);
     }
@@ -752,19 +528,7 @@ function renderFridge() {
 }
 
 function updateFridgeItemStatus(itemId, status) {
-  fridgeItems = fridgeItems.map((item) => {
-    if (item.id !== itemId) {
-      return item;
-    }
-    if (status === "available") {
-      const { statusChangedAt, ...rest } = item;
-      return { ...rest, status };
-    }
-    return { ...item, status, statusChangedAt: new Date().toISOString() };
-  });
-  renderFridge();
-  saveState();
-  scheduleFridgeCleanup();
+  void runApiAction(() => api.setFridgeStatus(itemId, status));
 }
 
 function renderShoppingList() {
@@ -785,9 +549,7 @@ function renderShoppingList() {
     removeButton.type = "button";
     removeButton.setAttribute("aria-label", `${item.name} 장보기 목록에서 삭제`);
     removeButton.addEventListener("click", () => {
-      shoppingList = shoppingList.filter((entry) => entry.id !== item.id);
-      renderShoppingList();
-      saveState();
+      void runApiAction(() => api.deleteShoppingItem(item.id));
     });
     row.append(removeButton);
     elements.shoppingList.append(row);
@@ -820,8 +582,10 @@ elements.memberList.addEventListener("input", (event) => {
     return;
   }
   showNotice("");
-  renderSettlement();
-  saveState();
+});
+
+elements.memberList.addEventListener("change", () => {
+  void saveMembers(members);
 });
 
 elements.addMember.addEventListener("click", () => {
@@ -835,9 +599,7 @@ elements.addMember.addEventListener("click", () => {
     suffix += 1;
     name = `룸메이트 ${suffix}`;
   }
-  members = [...members, name];
-  render();
-  saveState();
+  void saveMembers([...members, name]);
 });
 
 elements.addGroceryItem.addEventListener("click", () => {
@@ -897,49 +659,27 @@ elements.form.addEventListener("submit", (event) => {
 
   try {
     calculateShares(amount, participants, payer);
-    const expenseId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const createdAt = new Date().toISOString();
-    expenses = [
-      ...expenses,
-      {
-        id: expenseId,
-        title,
-        amount,
-        payer,
-        participants,
-        groceryItems: groceryDraftItems.map((item) => item.name),
-        createdAt,
-      },
-    ];
-    fridgeItems = [
-      ...fridgeItems,
-      ...groceryDraftItems.map((item) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        ...item,
-        storageType: item.storageType ?? "refrigerated",
-        purchasedAt: createdAt,
-        expenseId,
-        status: "available",
-      })),
-    ];
-    if (groceryDraftItems.length > 0) {
-      const purchasedNames = new Set(
-        groceryDraftItems.map((item) => item.name.trim().toLocaleLowerCase("ko-KR")),
-      );
-      shoppingList = shoppingList.filter(
-        (item) => !purchasedNames.has(item.name.trim().toLocaleLowerCase("ko-KR")),
-      );
-    }
   } catch (error) {
     showNotice(error.message);
     return;
   }
 
-  elements.form.reset();
-  groceryDraftItems = [];
-  showNotice("");
-  render();
-  saveState();
+  const expense = {
+    title,
+    amount,
+    payer,
+    participants,
+    groceryItems: groceryDraftItems.map(({ name, expirationDate, storageType }) => ({
+      name,
+      expirationDate,
+      storageType,
+    })),
+  };
+  void runApiAction(async () => {
+    await api.addExpense(expense);
+    elements.form.reset();
+    groceryDraftItems = [];
+  });
 });
 
 elements.shoppingForm.addEventListener("submit", (event) => {
@@ -949,30 +689,21 @@ elements.shoppingForm.addEventListener("submit", (event) => {
     showNotice("장보기 목록에 추가할 품목을 입력해 주세요.");
     return;
   }
-  if (!addToShoppingList(name)) {
+  if (isShoppingItemListed(name)) {
     showNotice("이미 장보기 목록에 있는 품목입니다.");
     return;
   }
-  elements.shoppingItemName.value = "";
-  showNotice("");
-  renderShoppingList();
-  saveState();
+  void runApiAction(async () => {
+    await api.addShoppingItem(name);
+    elements.shoppingItemName.value = "";
+  });
 });
 
 elements.clearExpenses.addEventListener("click", () => {
   if (expenses.length === 0 || !window.confirm("모든 지출 기록을 삭제할까요?")) {
     return;
   }
-  expenses = [];
-  settledExpenseIds = [];
-  completedTransfers = [];
-  render();
-  saveState();
+  void runApiAction(() => api.clearExpenses());
 });
 
-const expiredFridgeItemsRemoved = removeExpiredFridgeItems();
-render();
-scheduleFridgeCleanup();
-if (expiredFridgeItemsRemoved) {
-  saveState();
-}
+void refreshState().catch((error) => showNotice(error.message));
