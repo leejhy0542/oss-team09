@@ -60,3 +60,44 @@ const transfers = calculateMinimumTransfers({
 - `style.css`: 반응형 화면 스타일
 - `script.js`: 장보기·재고·목록·정산 화면 동작 및 브라우저 저장
 - `Calcul.js`: 부담액과 최소 송금 계산
+
+
+## 서버 실행
+
+Node.js 20.6 이상이 필요합니다.
+
+```bash
+npm install
+cp .env.example .env
+npm start              # http://localhost:3000
+npm test               # 계산 규칙과 API 테스트
+```
+
+데이터는 `data/state.json`에 저장됩니다. `data/`와 `.env`는 저장소에 올리지 않습니다.
+
+## API
+
+| 메서드 | 경로 | 설명 |
+| --- | --- | --- |
+| GET | /api/state | 첫 화면용 전체 상태 (정산 결과, 유통기한 판정 포함) |
+| GET, PUT | /api/members | 멤버 조회, 변경 (2~4명, 지출이 있으면 변경 불가) |
+| GET, POST | /api/expenses | 지출 조회, 장보기 등록 (식품은 냉장고에 함께 등록) |
+| DELETE | /api/expenses/:id | 지출 하나 삭제 |
+| DELETE | /api/expenses | 지출과 송금 기록 전체 삭제 (냉장고는 유지) |
+| GET | /api/settlement | 사람별 잔액과 최소 송금 목록 |
+| POST | /api/transfers | 송금 완료 처리 (현재 정산 결과에 있는 송금만) |
+| GET, POST | /api/fridge | 냉장고 목록(임박순), 식품 직접 등록 |
+| PATCH | /api/fridge/:id | 상태 변경 (available, consumed, discarded). 다 먹음·폐기는 바꾼 시각을 저장하고 7일 뒤 목록에서 빠짐 |
+| POST | /api/fridge/menu-suggestion | 임박 식품으로 한 줄 메뉴 제안 (LLM 연결 전에는 suggestion: null) |
+| GET, POST | /api/shopping-list | 다음 장보기 목록 조회, 추가 |
+| DELETE | /api/shopping-list/:id | 목록 항목 삭제 |
+
+에러는 `{ "error": "메시지" }` 형태로 돌려줍니다. LLM이 연결되지 않았거나 호출이 실패하면 메뉴 제안 API는 `suggestion: null`을 돌려주고 나머지 기능은 그대로 동작합니다.
+
+프론트에서는 `api.js`의 함수를 가져와 쓰면 됩니다.
+
+```js
+import { api } from "./api.js";
+const state = await api.getState();
+await api.addExpense({ title, amount, payer, participants, groceryItems });
+```
