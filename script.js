@@ -1,6 +1,7 @@
 import { calculateMinimumTransfers, calculateShares } from "./Calcul.js";
 
 const STORAGE_KEY = "moasseum-expense-ledger";
+const FRIDGE_STATUS_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_MEMBERS = ["나", "룸메이트 1"];
 const wonFormatter = new Intl.NumberFormat("ko-KR");
 
@@ -92,7 +93,10 @@ function isValidSavedState(value) {
               ["refrigerated", "room-temperature"].includes(item.storageType)) &&
             typeof item.purchasedAt === "string" &&
             typeof item.expenseId === "string" &&
-            ["available", "consumed", "discarded"].includes(item.status),
+            ["available", "consumed", "discarded"].includes(item.status) &&
+            (item.statusChangedAt === undefined ||
+              (typeof item.statusChangedAt === "string" &&
+                !Number.isNaN(Date.parse(item.statusChangedAt)))),
         ))) &&
     (value.shoppingList === undefined ||
       (Array.isArray(value.shoppingList) &&
@@ -146,6 +150,7 @@ let completedTransfers = savedState.completedTransfers ?? [];
 let fridgeItems = savedState.fridgeItems ?? [];
 let shoppingList = savedState.shoppingList ?? [];
 let groceryDraftItems = [];
+let fridgeCleanupTimer;
 
 function formatWon(amount) {
   return `₩${wonFormatter.format(amount)}`;
@@ -566,6 +571,48 @@ function renderGroceryDrafts() {
   });
 }
 
+function removeExpiredFridgeItems() {
+  const now = Date.now();
+  const remainingItems = fridgeItems.filter((item) => {
+    if (item.status === "available" || !item.statusChangedAt) {
+      return true;
+    }
+    const statusChangedAt = Date.parse(item.statusChangedAt);
+    return (
+      Number.isNaN(statusChangedAt) ||
+      now - statusChangedAt < FRIDGE_STATUS_RETENTION_MS
+    );
+  });
+  const removedItems = remainingItems.length !== fridgeItems.length;
+  fridgeItems = remainingItems;
+  return removedItems;
+}
+
+function scheduleFridgeCleanup() {
+  window.clearTimeout(fridgeCleanupTimer);
+  const nextExpiration = fridgeItems.reduce((earliest, item) => {
+    if (item.status === "available" || !item.statusChangedAt) {
+      return earliest;
+    }
+    const expiration =
+      Date.parse(item.statusChangedAt) + FRIDGE_STATUS_RETENTION_MS;
+    return Number.isNaN(expiration)
+      ? earliest
+      : Math.min(earliest, expiration);
+  }, Number.POSITIVE_INFINITY);
+  if (!Number.isFinite(nextExpiration)) {
+    return;
+  }
+
+  fridgeCleanupTimer = window.setTimeout(() => {
+    if (removeExpiredFridgeItems()) {
+      render();
+      saveState();
+    }
+    scheduleFridgeCleanup();
+  }, Math.max(0, nextExpiration - Date.now()));
+}
+
 function addToShoppingList(name) {
   const normalizedName = name.trim().toLocaleLowerCase("ko-KR");
   if (
@@ -677,9 +724,17 @@ function renderFridge() {
         createElement(
           "span",
           `expiry-badge ${item.status === "consumed" ? "expiry-consumed" : "expiry-discarded"}`,
-          statusLabels[item.status],
+          `${statusLabels[item.status]}`,
         ),
       );
+      const cancelButton = createElement("button", "small-action-button", "취소");
+      cancelButton.type = "button";
+      cancelButton.setAttribute("aria-label", `${item.name} 상태 변경 취소`);
+      cancelButton.addEventListener("click", () => {
+        updateFridgeItemStatus(item.id, "available");
+      });
+      actions.append(cancelButton);
+
       const restockButton = createElement("button", "small-action-button", "다음 장보기에 담기");
       restockButton.type = "button";
       restockButton.addEventListener("click", () => {
@@ -697,11 +752,19 @@ function renderFridge() {
 }
 
 function updateFridgeItemStatus(itemId, status) {
-  fridgeItems = fridgeItems.map((item) =>
-    item.id === itemId ? { ...item, status } : item,
-  );
+  fridgeItems = fridgeItems.map((item) => {
+    if (item.id !== itemId) {
+      return item;
+    }
+    if (status === "available") {
+      const { statusChangedAt, ...rest } = item;
+      return { ...rest, status };
+    }
+    return { ...item, status, statusChangedAt: new Date().toISOString() };
+  });
   renderFridge();
   saveState();
+  scheduleFridgeCleanup();
 }
 
 function renderShoppingList() {
@@ -907,4 +970,9 @@ elements.clearExpenses.addEventListener("click", () => {
   saveState();
 });
 
+const expiredFridgeItemsRemoved = removeExpiredFridgeItems();
 render();
+scheduleFridgeCleanup();
+if (expiredFridgeItemsRemoved) {
+  saveState();
+}

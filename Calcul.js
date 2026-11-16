@@ -1,3 +1,4 @@
+//공동 비용 계산 규칙 함수
 export function calculateShares(amount, participants, payer) {
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     throw new RangeError("금액은 1원 이상의 안전한 정수여야 합니다.");
@@ -32,6 +33,7 @@ export function calculateShares(amount, participants, payer) {
   return Array.from(shares, ([name, share]) => ({ name, amount: share }));
 }
 
+//1인당 최소 송금액 계산 규칙 함수
 export function calculateMinimumTransfers(balances) {
   if (!balances || typeof balances !== "object" || Array.isArray(balances)) {
     throw new TypeError("정산 잔액은 사람별 금액 객체여야 합니다.");
