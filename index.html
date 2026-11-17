@@ -187,14 +187,12 @@
             <section class="menu-suggestion" aria-labelledby="menu-suggestion-title">
               <div class="menu-suggestion-heading">
                 <span class="menu-sparkle" aria-hidden="true">✦</span>
-                <div>
-                  <h3 id="menu-suggestion-title">임박 식품으로 메뉴 제안</h3>
-                  
-                </div>
+                <h3 id="menu-suggestion-title">임박 식품으로 메뉴 제안</h3>
+                <button id="menu-suggestion-button" class="secondary-button" type="button">
+                  메뉴 추천받기
+                </button>
               </div>
-              <p id="menu-suggestion-text" class="menu-suggestion-text">
-              </p>
-              <p class="llm-footnote"></p>
+              <p id="menu-suggestion-text" class="menu-suggestion-text"></p>
             </section>
           </section>
 
@@ -238,5 +236,13 @@
         </div>
       </main>
     </div>
+    <script type="module">
+      import { bindMenuSuggestion } from "./menu-suggestion.js";
+
+      bindMenuSuggestion({
+        button: document.querySelector("#menu-suggestion-button"),
+        result: document.querySelector("#menu-suggestion-text"),
+      });
+    </script>
   </body>
 </html>

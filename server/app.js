@@ -21,7 +21,7 @@ import {
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // 화면 파일만 공개한다. 저장소 전체를 static으로 열면 data/나 .env가 노출된다.
-const PUBLIC_FILES = ["index.html", "style.css", "script.js", "Calcul.js", "api.js"];
+const PUBLIC_FILES = ["index.html", "style.css", "script.js", "Calcul.js", "api.js", "menu-suggestion.js"];
 const FRIDGE_STATUSES = ["available", "consumed", "discarded"];
 const EXPIRY_ORDER = { expired: 0, soon: 1, fresh: 2, unknown: 3 };
 
