@@ -31,6 +31,7 @@ test("멤버를 바꾸고 장보기를 등록하면 정산과 냉장고에 함�
   const created = await call("POST", "/expenses", {
     title: "주말 장보기",
     amount: 10000,
+    category: "장보기",
     payer: "민지",
     participants: ["민지", "서준", "하은"],
     groceryItems: [
@@ -39,6 +40,7 @@ test("멤버를 바꾸고 장보기를 등록하면 정산과 냉장고에 함�
     ],
   });
   assert.equal(created.status, 201);
+  assert.equal(created.body.category, "장보기");
 
   const settlement = (await call("GET", "/settlement")).body;
   assert.deepEqual(settlement.balances, { 민지: 6666, 서준: -3333, 하은: -3333 });
@@ -51,6 +53,14 @@ test("멤버를 바꾸고 장보기를 등록하면 정산과 냉장고에 함�
 
   // 산 우유는 다음 장보기 목록에서 빠진다
   assert.deepEqual((await call("GET", "/shopping-list")).body, []);
+
+  const legacyExpense = await call("POST", "/expenses", {
+    title: "기존 요청 호환 확인",
+    amount: 100,
+    payer: "민지",
+    participants: ["민지"],
+  });
+  assert.equal(legacyExpense.body.category, "기타");
 });
 
 test("송금 완료는 현재 정산 결과에 있는 것만 받는다", async () => {
@@ -67,6 +77,13 @@ test("잘못된 입력은 400과 에러 메시지를 돌려준다", async () => 
   assert.equal(res.status, 400);
   assert.match(res.body.error, /1원 이상/);
   assert.equal((await call("POST", "/expenses", { title: "x", amount: 100, payer: "없는사람", participants: ["민지"] })).status, 400);
+  assert.equal((await call("POST", "/expenses", {
+    title: "잘못된 카테고리",
+    amount: 100,
+    category: "여행",
+    payer: "민지",
+    participants: ["민지"],
+  })).status, 400);
 });
 
 test("지출이 있으면 멤버를 바꿀 수 없다", async () => {
