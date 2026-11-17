@@ -91,6 +91,7 @@ export function createApp({ store, llm, now = () => new Date() }) {
         id: randomUUID(),
         title: input.title,
         amount: input.amount,
+        category: input.category,
         payer: input.payer,
         participants: input.participants,
         groceryItems: input.groceryItems.map((item) => item.name),

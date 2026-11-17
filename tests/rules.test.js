@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateMinimumTransfers, calculateShares } from "../Calcul.js";
+import {
+  calculateMinimumTransfers,
+  calculateShares,
+  getExpiryInfo,
+} from "../Calcul.js";
 import {
   calculateBalances,
   getExpiryStatus,
@@ -61,6 +65,24 @@ test("유통기한 판정: 지남, 임박(0~2일), 여유, 미입력", () => {
   assert.equal(getExpiryStatus("2026-11-18", today).status, "soon");
   assert.equal(getExpiryStatus("2026-11-19", today).status, "fresh");
   assert.equal(getExpiryStatus("", today).status, "unknown");
+});
+
+test("유통기한 표시: 폐기 확인, 임박, 여유, 미입력을 구분한다", () => {
+  const dateAfter = (days) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+  };
+
+  assert.equal(getExpiryInfo(dateAfter(-1)).label, "폐기 확인");
+  assert.equal(getExpiryInfo(dateAfter(0)).label, "오늘까지");
+  assert.equal(getExpiryInfo(dateAfter(2)).className, "expiry-soon");
+  assert.equal(getExpiryInfo(dateAfter(3)).label, "여유");
+  assert.equal(getExpiryInfo("").className, "expiry-unknown");
 });
 
 test("날짜 검사: 없는 날짜는 거부한다", () => {

@@ -62,6 +62,14 @@
                 <span aria-hidden="true">원</span>
               </div>
 
+              <label class="field-label" for="expense-category">카테고리</label>
+              <select id="expense-category" name="category" class="text-input select-input">
+                <option value="공과금">공과금</option>
+                <option value="월세">월세</option>
+                <option value="장보기">장보기</option>
+                <option value="기타" selected>기타</option>
+              </select>
+
               <label class="field-label" for="payer">결제한 사람</label>
               <select id="payer" name="payer" class="text-input select-input"></select>
 
@@ -69,6 +77,8 @@
                 <legend class="field-label">정산 포함 인원</legend>
                 <div id="split-participants" class="participant-options"></div>
               </fieldset>
+
+              <button class="primary-button" type="submit">정산에 추가하기 <span aria-hidden="true">→</span></button>
             </section>
 
             <section class="card grocery-card" aria-labelledby="grocery-title">
@@ -108,7 +118,7 @@
                 <p class="field-hint grocery-field-hint">유통기한을 모르면 비워둘 수 있어요. 등록 후에도 상태를 수정할 수 있습니다.</p>
               </div>
 
-              <button class="primary-button" type="submit">
+              <button id="add-grocery-expense" class="primary-button" type="submit">
                 장보기 기록하기 <span aria-hidden="true">→</span>
               </button>
             </section>
@@ -151,6 +161,17 @@
               </button>
             </div>
             <div id="expense-list" class="expense-list"></div>
+          </section>
+
+          <section class="card monthly-summary-card" aria-labelledby="monthly-summary-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">MONTHLY SPENDING</p>
+                <h2 id="monthly-summary-title">월별 카테고리 소비</h2>
+              </div>
+              <span class="heading-icon" aria-hidden="true">₩</span>
+            </div>
+            <div id="monthly-category-totals" class="monthly-category-list"></div>
           </section>
 
           <section class="card fridge-card" aria-labelledby="fridge-title">
