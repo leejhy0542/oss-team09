@@ -158,18 +158,26 @@ export function createApp({ store, llm, now = () => new Date() }) {
     res.json(withExpiry(store.get().fridgeItems, now()));
   });
 
-  // 장보기 없이 식품만 직접 등록
+  // 장보기 없이 식품만 직접 등록. 하나({ name, ... })나 여러 개({ items: [...] }) 모두 받는다.
   api.post("/fridge", async (req, res) => {
-    const item = validateGroceryItem(req.body);
-    const created = {
+    const inputs = Array.isArray(req.body?.items) ? req.body.items : [req.body];
+    if (inputs.length === 0) throw new HttpError(400, "등록할 식품을 한 개 이상 입력해 주세요.");
+    const purchasedAt = now().toISOString();
+    const created = inputs.map((input) => ({
       id: randomUUID(),
-      ...item,
-      purchasedAt: now().toISOString(),
+      ...validateGroceryItem(input),
+      purchasedAt,
       expenseId: "",
       status: "available",
-    };
-    await store.update((s) => ({ ...s, fridgeItems: [...s.fridgeItems, created] }));
-    res.status(201).json(created);
+    }));
+    // 산 식품과 같은 이름은 다음 장보기 목록에서 지운다 (장보기 기록과 같은 규칙)
+    const bought = new Set(created.map((item) => normalizeName(item.name)));
+    await store.update((s) => ({
+      ...s,
+      fridgeItems: [...s.fridgeItems, ...created],
+      shoppingList: s.shoppingList.filter((item) => !bought.has(normalizeName(item.name))),
+    }));
+    res.status(201).json(Array.isArray(req.body?.items) ? created : created[0]);
   });
 
   api.patch("/fridge/:id", async (req, res) => {

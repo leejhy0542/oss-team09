@@ -132,3 +132,22 @@ test("서버 내부 파일은 공개되지 않는다", async () => {
   assert.equal((await fetch(`${root}/package.json`)).status, 404);
   assert.equal((await fetch(`${root}/index.html`)).status, 200);
 });
+
+test("지출 없이 식품만 등록해도 냉장고에 들어가고 장보기 목록에서 빠진다", async () => {
+  await call("POST", "/shopping-list", { name: "두부" });
+  await call("POST", "/shopping-list", { name: "휴지" });
+  const res = await call("POST", "/fridge", {
+    items: [
+      { name: "두부", expirationDate: "2026-11-18" },
+      { name: "김치", storageType: "refrigerated" },
+    ],
+  });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.length, 2);
+  assert.equal(res.body[0].expenseId, "");
+
+  const names = (await call("GET", "/fridge")).body.map((i) => i.name);
+  assert.ok(names.includes("두부") && names.includes("김치"));
+  assert.deepEqual((await call("GET", "/shopping-list")).body.map((i) => i.name), ["휴지"]);
+  assert.equal((await call("POST", "/fridge", { items: [] })).status, 400);
+});
