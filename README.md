@@ -118,7 +118,7 @@ npm test               # 계산 규칙, API, LLM 클라이언트와 화면 동�
 | DELETE | /api/expenses | 지출과 송금 기록 전체 삭제 (냉장고는 유지) |
 | GET | /api/settlement | 사람별 잔액과 최소 송금 목록 |
 | POST | /api/transfers | 송금 완료 처리 (현재 정산 결과에 있는 송금만) |
-| GET, POST | /api/fridge | 냉장고 목록(임박순), 식품 직접 등록 |
+| GET, POST | /api/fridge | 냉장고 목록(임박순), 지출 없이 식품만 등록 (하나 또는 { items: [...] }). 같은 이름은 다음 장보기 목록에서 빠짐 |
 | PATCH | /api/fridge/:id | 상태 변경 (available, consumed, discarded). 다 먹음·폐기는 바꾼 시각을 저장하고 7일 뒤 목록에서 빠짐 |
 | POST | /api/fridge/menu-suggestion | 서버에 저장된 임박 식품으로 Gemini 메뉴 추천 (요청 본문 없음) |
 | GET, POST | /api/shopping-list | 다음 장보기 목록 조회, 추가 |
