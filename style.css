@@ -894,8 +894,10 @@ a:focus-visible {
 }
 
 .menu-suggestion-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-start;
+  gap: 12px;
 }
 
 .menu-sparkle {
@@ -911,7 +913,24 @@ a:focus-visible {
 }
 
 .menu-suggestion-heading h3 {
-  margin: 0 0 5px;
+  margin: 0;
+}
+
+.menu-suggestion-heading .secondary-button {
+  border-color: #cddfc8;
+  background: #e8f1e5;
+  color: #365e3b;
+  white-space: nowrap;
+}
+
+.menu-suggestion-heading .secondary-button:hover:not(:disabled) {
+  border-color: #b9d0b2;
+  background: #dcead7;
+}
+
+.menu-suggestion-heading .secondary-button:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 
 .menu-suggestion-text {
@@ -921,8 +940,8 @@ a:focus-visible {
   line-height: 1.75;
 }
 
-.menu-suggestion .llm-footnote {
-  margin-top: 7px;
+.menu-suggestion-text:empty {
+  margin: 0;
 }
 
 .fridge-item {
@@ -1157,6 +1176,15 @@ a:focus-visible {
 }
 
 @media (max-width: 460px) {
+  .menu-suggestion-heading {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .menu-suggestion-heading .secondary-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .grocery-entry-fields {
     grid-template-columns: minmax(0, 1fr) auto;
   }
