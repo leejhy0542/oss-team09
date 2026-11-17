@@ -684,13 +684,35 @@ elements.addGroceryItem.addEventListener("click", () => {
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
   const includeGroceryItems = event.submitter?.id === "add-grocery-expense";
+  const title = elements.expenseName.value.trim();
+
+  if (includeGroceryItems && title === "") {
+    if (groceryDraftItems.length === 0) {
+      showNotice("장보기 기록에 식품을 한 개 이상 추가해 주세요.");
+      elements.groceryName.focus();
+      return;
+    }
+
+    void runApiAction(async () => {
+      await api.addFridgeItems(
+        groceryDraftItems.map(({ name, expirationDate, storageType }) => ({
+          name,
+          expirationDate,
+          storageType,
+        })),
+      );
+      groceryDraftItems = [];
+      renderGroceryDrafts();
+    });
+    return;
+  }
+
   const rosterError = getRosterError();
   if (rosterError) {
     showNotice(rosterError);
     return;
   }
 
-  const title = elements.expenseName.value.trim();
   const amount = Number(elements.expenseAmount.value);
   const payer = elements.payer.value;
   const participants = Array.from(
