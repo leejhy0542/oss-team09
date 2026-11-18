@@ -23,6 +23,60 @@ export function getExpiryInfo(expirationDate) {
   return { label: "여유", className: "expiry-fresh", sortOrder: 2 };
 }
 
+//월별 카테고리 소비 합계 함수
+export const DEFAULT_EXPENSE_CATEGORIES = ["공과금", "월세", "장보기", "기타"];
+const monthFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "2-digit",
+  timeZone: "Asia/Seoul",
+});
+
+export function calculateMonthlyCategoryTotals(
+  expenses,
+  categories = DEFAULT_EXPENSE_CATEGORIES,
+) {
+  const totalsByMonth = new Map();
+  expenses.forEach((expense) => {
+    const date = new Date(expense.createdAt);
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const dateParts = Object.fromEntries(
+      monthFormatter
+        .formatToParts(date)
+        .filter(({ type }) => type === "year" || type === "month")
+        .map(({ type, value }) => [type, value]),
+    );
+    const monthKey = `${dateParts.year}-${dateParts.month}`;
+    if (!totalsByMonth.has(monthKey)) {
+      totalsByMonth.set(
+        monthKey,
+        new Map(categories.map((category) => [category, 0n])),
+      );
+    }
+
+    const monthlyTotals = totalsByMonth.get(monthKey);
+    const category = categories.includes(expense.category)
+      ? expense.category
+      : "기타";
+    monthlyTotals.set(
+      category,
+      monthlyTotals.get(category) + BigInt(expense.amount),
+    );
+  });
+
+  return [...totalsByMonth.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .map(([month, monthlyTotals]) => ({
+      month,
+      categories: categories.map((category) => ({
+        category,
+        amount: monthlyTotals.get(category),
+      })),
+    }));
+}
+
 //공동 비용 계산 규칙 함수
 export function calculateShares(amount, participants, payer) {
   if (!Number.isSafeInteger(amount) || amount <= 0) {

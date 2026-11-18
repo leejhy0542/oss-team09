@@ -1,15 +1,15 @@
 # 모아씀
 
-셰어하우스나 룸메이트가 장보기 한 번을 기록해 공동 지출 정산과 냉장고 재고 관리를 함께 하는 웹 앱입니다.
+셰어하우스나 룸메이트가 공동 지출을 정산하고 공용 냉장고 재고를 관리하는 웹 앱입니다.
 
 
 ## 사용 방법
 
 1. 함께 사는 사람의 이름을 입력합니다. 2~4명까지 설정할 수 있습니다.
-2. 장보기 이름, 결제 금액, 결제자와 나눌 사람을 입력합니다.
-3. 산 식품과 유통기한을 추가하고 **장보기 기록하기**를 누릅니다. 지출은 정산에, 식품은 공용 냉장고에 함께 등록됩니다.
+2. 공동 비용 계산에 지출 이름, 결제 금액, 결제자와 나눌 사람을 입력하고 **정산에 추가하기**를 누릅니다. 금액 입력 아래의 빠른 입력 버튼을 사용하거나 카테고리를 직접 추가할 수 있습니다. 추가한 카테고리는 저장되어 월별 합계에 반영됩니다. 지출만 정산에 등록됩니다.
+3. 장보기 기록에 산 식품과 유통기한을 추가하고 **장보기 기록하기**를 누릅니다. 식품만 공용 냉장고에 등록됩니다.
 4. 냉장고 목록에서 품목명 옆의 냉장·실온 보관 표시와 유통기한 임박 여부를 확인하고, 식품을 다 먹었거나 버렸을 때 상태를 표시합니다.
-5. 식품을 다음 장보기 목록에 담거나 품목을 직접 추가합니다. 이후 해당 식품을 구매해 장보기 기록에 등록하면 같은 이름의 목록 항목은 자동으로 제거됩니다.
+5. 식품을 다음 장보기 목록에 담거나 품목을 직접 추가합니다. 이후 장보기 기록에 등록하면 같은 이름의 목록 항목은 자동으로 제거됩니다.
 6. 현재 정산의 송금 건마다 실제 송금을 마친 뒤 해당 건의 **송금 완료**를 누릅니다. 완료한 송금은 잔액에서 차감되고 완료 내역에 따로 남으며, 나머지 송금은 대기 상태로 유지됩니다.
 7. 공용 냉장고의 **메뉴 추천받기**를 누르면 보관 중인 임박 식품을 활용한 메뉴를 추천받습니다. 추천 중에는 버튼이 비활성화되고, 요청이 끝나면 다시 사용할 수 있습니다.
 
@@ -63,7 +63,7 @@ const transfers = calculateMinimumTransfers({
 - `style.css`: 반응형 화면 스타일
 - `script.js`: 장보기·재고·목록·정산 화면 동작 및 [`api.js`](./api.js)를 통한 서버 연동
 - `api.js`: 서버 API 요청 함수
-- `Calcul.js`: 유통기한 임박 기간 판정, 부담액과 최소 송금 계산
+- `Calcul.js`: 유통기한 임박 기간 판정, 부담액·최소 송금·월별 사용자 카테고리 합계 계산
 - `menu-suggestion.js`: 메뉴 추천 버튼, 로딩 상태, 결과와 오류 안내 표시
 - `server/menu/menu-rules.js`: 메뉴 추천에 사용할 임박 식품 선별
 - `server/fridge-stats.js`: 사람별 냉장고 점유와 폐기율 계산
@@ -116,14 +116,14 @@ npm test               # 계산 규칙, API, LLM 클라이언트와 화면 동�
 | --- | --- | --- |
 | GET | /api/state | 첫 화면용 전체 상태 (정산 결과, 유통기한 판정 포함) |
 | GET, PUT | /api/members | 멤버 조회, 변경 (2~4명, 지출이 있으면 변경 불가) |
-| GET, POST | /api/expenses | 지출 조회, 장보기 등록 (식품은 냉장고에 함께 등록) |
+| POST | /api/categories | 공동 지출 카테고리 추가 |
+| GET, POST | /api/expenses | 정산 지출 조회, 등록 |
 | DELETE | /api/expenses/:id | 지출 하나 삭제 |
 | DELETE | /api/expenses | 지출과 송금 기록 전체 삭제 (냉장고는 유지) |
 | GET | /api/settlement | 사람별 잔액과 최소 송금 목록 |
 | POST | /api/transfers | 송금 완료 처리 (현재 정산 결과에 있는 송금만) |
-| GET, POST | /api/fridge | 냉장고 목록(임박순), 지출 없이 식품만 등록 (하나 또는 { items: [...] }). 같은 이름은 다음 장보기 목록에서 빠짐 |
-| PATCH | /api/fridge/:id | 상태(available, consumed, discarded)나 주인(owner) 변경. 다 먹음·폐기는 바꾼 시각을 저장하고 7일 뒤 목록에서 빠짐 |
-| GET | /api/fridge/stats | 사람별 냉장고 점유 (등록 수, 보관 중·다 먹음·폐기 수, 폐기율) |
+| GET, POST | /api/fridge | 냉장고 목록(임박순), 식품 등록 (하나 또는 { items: [...] }). 같은 이름은 다음 장보기 목록에서 빠짐 |
+| PATCH | /api/fridge/:id | 상태 변경 (available, consumed, discarded). 다 먹음·폐기는 바꾼 시각을 저장하고 7일 뒤 목록에서 빠짐 |
 | POST | /api/fridge/menu-suggestion | 서버에 저장된 임박 식품으로 Gemini 메뉴 추천 (요청 본문 없음) |
 | GET, POST | /api/shopping-list | 다음 장보기 목록 조회, 추가 |
 | DELETE | /api/shopping-list/:id | 목록 항목 삭제 |
@@ -154,5 +154,6 @@ npm test               # 계산 규칙, API, LLM 클라이언트와 화면 동�
 ```js
 import { api } from "./api.js";
 const state = await api.getState();
-await api.addExpense({ title, amount, payer, participants, groceryItems });
+await api.addExpense({ title, amount, payer, participants });
+await api.addFridgeItems([{ name, expirationDate }]);
 ```

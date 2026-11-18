@@ -228,7 +228,28 @@ a:focus-visible {
 
 .amount-input {
   padding-right: 42px;
+  appearance: textfield;
   font-variant-numeric: tabular-nums;
+}
+
+.amount-input::-webkit-inner-spin-button,
+.amount-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.amount-quick-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.amount-quick-button {
+  min-height: 36px;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .amount-input-wrap > span {
@@ -245,6 +266,13 @@ a:focus-visible {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%237d8a82' stroke-width='1.5'/%3E%3C/svg%3E");
   background-position: right 14px center;
   background-repeat: no-repeat;
+}
+
+.category-add-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .participant-fieldset {

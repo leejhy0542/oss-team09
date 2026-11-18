@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  calculateMonthlyCategoryTotals,
   calculateMinimumTransfers,
   calculateShares,
   getExpiryInfo,
@@ -12,6 +13,43 @@ import {
   isValidDate,
   todayInSeoul,
 } from "../server/rules.js";
+
+test("월별 카테고리 합계: 한국 시간 기준으로 월을 나누고 잘못된 카테고리는 기타에 합산한다", () => {
+  const totals = calculateMonthlyCategoryTotals([
+    { createdAt: "2026-01-31T15:00:00Z", category: "장보기", amount: 1250 },
+    { createdAt: "2026-01-31T14:00:00Z", category: "월세", amount: 3000 },
+    { createdAt: "2026-02-10T00:00:00Z", category: "미분류", amount: 75 },
+    { createdAt: "2026-02-11T00:00:00Z", category: "교통", amount: 500 },
+    { createdAt: "잘못된 날짜", category: "기타", amount: 999 },
+  ], ["공과금", "월세", "장보기", "기타", "교통"]);
+
+  assert.deepEqual(totals, [
+    {
+      month: "2026-02",
+      categories: [
+        { category: "공과금", amount: 0n },
+        { category: "월세", amount: 0n },
+        { category: "장보기", amount: 1250n },
+        { category: "기타", amount: 75n },
+        { category: "교통", amount: 500n },
+      ],
+    },
+    {
+      month: "2026-01",
+      categories: [
+        { category: "공과금", amount: 0n },
+        { category: "월세", amount: 3000n },
+        { category: "장보기", amount: 0n },
+        { category: "기타", amount: 0n },
+        { category: "교통", amount: 0n },
+      ],
+    },
+  ]);
+});
+
+test("월별 카테고리 합계: 내역이 없으면 빈 목록을 반환한다", () => {
+  assert.deepEqual(calculateMonthlyCategoryTotals([]), []);
+});
 
 test("1인당 부담액: 나머지 원은 결제한 사람이 낸다", () => {
   assert.deepEqual(calculateShares(10000, ["민지", "서준", "하은"], "민지"), [

@@ -25,8 +25,8 @@
         <p id="state-notice" class="state-notice" role="status" aria-live="polite"></p>
 
         <div class="dashboard-grid">
-          <form id="expense-form" class="shopping-form-grid">
-            <section class="card expense-card" aria-labelledby="expense-title">
+          <div class="shopping-form-grid">
+            <form id="expense-form" class="card expense-card" aria-labelledby="expense-title">
               <div class="section-heading">
                 <div>
                   <p class="section-kicker">SHARED EXPENSE</p>
@@ -61,6 +61,11 @@
                 >
                 <span aria-hidden="true">원</span>
               </div>
+              <div id="amount-quick-buttons" class="amount-quick-buttons" aria-label="금액 빠른 입력">
+                <button class="secondary-button amount-quick-button" type="button" data-amount-increment="1000">+1,000원</button>
+                <button class="secondary-button amount-quick-button" type="button" data-amount-increment="5000">+5,000원</button>
+                <button class="secondary-button amount-quick-button" type="button" data-amount-increment="10000">+10,000원</button>
+              </div>
 
               <label class="field-label" for="expense-category">카테고리</label>
               <select id="expense-category" name="category" class="text-input select-input">
@@ -69,6 +74,18 @@
                 <option value="장보기">장보기</option>
                 <option value="기타" selected>기타</option>
               </select>
+              <div class="category-add-controls">
+                <label class="visually-hidden" for="new-expense-category">새 카테고리 이름</label>
+                <input
+                  id="new-expense-category"
+                  class="text-input"
+                  type="text"
+                  maxlength="30"
+                  placeholder="직접 추가할 카테고리"
+                  autocomplete="off"
+                >
+                <button id="add-expense-category" class="secondary-button" type="button">카테고리 추가</button>
+              </div>
 
               <label class="field-label" for="payer">결제한 사람</label>
               <select id="payer" name="payer" class="text-input select-input"></select>
@@ -79,9 +96,9 @@
               </fieldset>
 
               <button class="primary-button" type="submit">정산에 추가하기 <span aria-hidden="true">→</span></button>
-            </section>
+            </form>
 
-            <section class="card grocery-card" aria-labelledby="grocery-title">
+            <form id="grocery-form" class="card grocery-card" aria-labelledby="grocery-title">
               <div class="section-heading">
                 <div>
                   <p class="section-kicker">GROCERY ITEMS</p>
@@ -125,8 +142,8 @@
               <button id="add-grocery-expense" class="primary-button" type="submit" formnovalidate>
                   식품 등록하기<span aria-hidden="true">→</span>
               </button>
-            </section>
-          </form>
+            </form>
+          </div>
 
           <section class="card settlement-card" aria-labelledby="settlement-title">
             <div class="section-heading">
