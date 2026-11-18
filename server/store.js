@@ -1,10 +1,12 @@
 // JSON 파일 저장소. 쓰기는 한 번에 하나씩, 임시 파일에 쓴 뒤 이름을 바꿔 파일이 깨지지 않게 한다.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../Calcul.js";
 
 export function createDefaultState() {
   return {
     members: ["나", "룸메이트 1"],
+    categories: [...DEFAULT_EXPENSE_CATEGORIES],
     expenses: [],
     settledExpenseIds: [],
     completedTransfers: [],

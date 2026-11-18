@@ -14,6 +14,7 @@ import {
 import {
   HttpError,
   validateExpense,
+  validateExpenseCategory,
   validateGroceryItem,
   validateMembers,
   validateTransfer,
@@ -80,13 +81,25 @@ export function createApp({ store, llm, now = () => new Date() }) {
     res.json(state.members);
   });
 
-  // 지출 (장보기 기록)
+  // 사용자 카테고리
+  api.post("/categories", async (req, res) => {
+    const category = validateExpenseCategory(req.body?.category);
+    const state = await store.update((s) => {
+      if (s.categories.includes(category)) {
+        throw new HttpError(409, "이미 등록된 카테고리입니다.");
+      }
+      return { ...s, categories: [...s.categories, category] };
+    });
+    res.status(201).json(state.categories);
+  });
+
+  // 정산 지출
   api.get("/expenses", (req, res) => res.json(store.get().expenses));
 
   api.post("/expenses", async (req, res) => {
     let created;
     await store.update((s) => {
-      const input = validateExpense(req.body, s.members);
+      const input = validateExpense(req.body, s.members, s.categories);
       const createdAt = now().toISOString();
       created = {
         id: randomUUID(),
@@ -95,23 +108,12 @@ export function createApp({ store, llm, now = () => new Date() }) {
         category: input.category,
         payer: input.payer,
         participants: input.participants,
-        groceryItems: input.groceryItems.map((item) => item.name),
+        groceryItems: [],
         createdAt,
       };
-      const newFridgeItems = input.groceryItems.map((item) => ({
-        id: randomUUID(),
-        ...item,
-        purchasedAt: createdAt,
-        expenseId: created.id,
-        status: "available",
-      }));
-      // 산 식품과 같은 이름은 다음 장보기 목록에서 지운다
-      const bought = new Set(input.groceryItems.map((item) => normalizeName(item.name)));
       return {
         ...s,
         expenses: [...s.expenses, created],
-        fridgeItems: [...s.fridgeItems, ...newFridgeItems],
-        shoppingList: s.shoppingList.filter((item) => !bought.has(normalizeName(item.name))),
       };
     });
     res.status(201).json(created);

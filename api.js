@@ -14,6 +14,7 @@ async function request(method, path, body) {
 export const api = {
   getState: () => request("GET", "/state"),
   setMembers: (members) => request("PUT", "/members", { members }),
+  addExpenseCategory: (category) => request("POST", "/categories", { category }),
 
   addExpense: (expense) => request("POST", "/expenses", expense),
   deleteExpense: (id) => request("DELETE", `/expenses/${encodeURIComponent(id)}`),

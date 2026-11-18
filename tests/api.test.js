@@ -24,32 +24,43 @@ async function call(method, path, body) {
   return { status: res.status, body: res.status === 204 ? null : await res.json() };
 }
 
-test("멤버를 바꾸고 장보기를 등록하면 정산과 냉장고에 함께 반영된다", async () => {
+test("정산 지출과 냉장고 식품은 각각 별도로 등록된다", async () => {
   assert.equal((await call("PUT", "/members", { members: ["민지", "서준", "하은"] })).status, 200);
+  const categories = await call("POST", "/categories", { category: "교통" });
+  assert.equal(categories.status, 201);
+  assert.ok(categories.body.includes("교통"));
+  assert.equal((await call("POST", "/categories", { category: "교통" })).status, 409);
 
   await call("POST", "/shopping-list", { name: "우유" });
   const created = await call("POST", "/expenses", {
-    title: "주말 장보기",
+    title: "공동 생활용품",
     amount: 10000,
-    category: "장보기",
+    category: "교통",
     payer: "민지",
     participants: ["민지", "서준", "하은"],
-    groceryItems: [
-      { name: "우유", expirationDate: "2026-11-17" },
-      { name: "계란", expirationDate: "2026-11-30", storageType: "refrigerated" },
-    ],
+    groceryItems: [{ name: "우유", expirationDate: "2026-11-17" }],
   });
   assert.equal(created.status, 201);
-  assert.equal(created.body.category, "장보기");
+  assert.equal(created.body.category, "교통");
+  assert.deepEqual(created.body.groceryItems, []);
 
   const settlement = (await call("GET", "/settlement")).body;
   assert.deepEqual(settlement.balances, { 민지: 6666, 서준: -3333, 하은: -3333 });
   assert.equal(settlement.transfers.length, 2);
+  assert.deepEqual((await call("GET", "/fridge")).body, []);
 
+  const groceries = await call("POST", "/fridge", {
+    items: [
+      { name: "우유", expirationDate: "2026-11-17" },
+      { name: "계란", expirationDate: "2026-11-30", storageType: "refrigerated" },
+    ],
+  });
+  assert.equal(groceries.status, 201);
   const fridge = (await call("GET", "/fridge")).body;
   assert.equal(fridge.length, 2);
   assert.equal(fridge[0].name, "우유"); // 임박한 것이 먼저
   assert.equal(fridge[0].expiry.status, "soon");
+  assert.equal((await call("GET", "/expenses")).body.length, 1);
 
   // 산 우유는 다음 장보기 목록에서 빠진다
   assert.deepEqual((await call("GET", "/shopping-list")).body, []);

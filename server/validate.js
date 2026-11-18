@@ -1,4 +1,5 @@
 // 요청 본문 검사. 잘못된 입력이면 HttpError(400)를 던진다.
+import { DEFAULT_EXPENSE_CATEGORIES } from "../Calcul.js";
 import { isValidDate } from "./rules.js";
 
 export class HttpError extends Error {
@@ -35,12 +36,16 @@ export function validateGroceryItem(item) {
   return { name: item.name.trim(), expirationDate, storageType };
 }
 
-export function validateExpense(body, members) {
+export function validateExpense(
+  body,
+  members,
+  categories = DEFAULT_EXPENSE_CATEGORIES,
+) {
   if (!body || typeof body !== "object") throw bad("요청 형식이 올바르지 않습니다.");
-  const { title, amount, payer, participants, groceryItems = [] } = body;
+  const { title, amount, payer, participants } = body;
   const category = body.category ?? "기타";
-  if (!["공과금", "월세", "장보기", "기타"].includes(category)) {
-    throw bad("카테고리는 공과금, 월세, 장보기, 기타 중에서 선택해 주세요.");
+  if (!categories.includes(category)) {
+    throw bad("등록된 카테고리를 선택해 주세요.");
   }
   if (!isName(title, 50)) throw bad("지출 내용은 1~50자로 입력해 주세요.");
   if (!Number.isSafeInteger(amount) || amount <= 0) throw bad("금액은 1원 이상의 정수로 입력해 주세요.");
@@ -51,15 +56,18 @@ export function validateExpense(body, members) {
   if (!participants.every((p) => members.includes(p)) || new Set(participants).size !== participants.length) {
     throw bad("부담할 사람은 멤버 목록에 있는 서로 다른 사람이어야 합니다.");
   }
-  if (!Array.isArray(groceryItems)) throw bad("식품 목록 형식이 올바르지 않습니다.");
   return {
     title: title.trim(),
     amount,
     category,
     payer,
     participants,
-    groceryItems: groceryItems.map(validateGroceryItem),
   };
+}
+
+export function validateExpenseCategory(category) {
+  if (!isName(category, 30)) throw bad("카테고리는 1~30자로 입력해 주세요.");
+  return category.trim();
 }
 
 export function validateTransfer(body) {
