@@ -27,6 +27,8 @@ export const api = {
   addFridgeItem: (item) => request("POST", "/fridge", item),
   addFridgeItems: (items) => request("POST", "/fridge", { items }),
   setFridgeStatus: (id, status) => request("PATCH", `/fridge/${encodeURIComponent(id)}`, { status }),
+  setFridgeOwner: (id, owner) => request("PATCH", `/fridge/${encodeURIComponent(id)}`, { owner }),
+  getFridgeStats: () => request("GET", "/fridge/stats"),
   getMenuSuggestion: () => request("POST", "/fridge/menu-suggestion"),
 
   getShoppingList: () => request("GET", "/shopping-list"),

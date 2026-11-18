@@ -102,7 +102,7 @@
               <div class="section-heading">
                 <div>
                   <p class="section-kicker">GROCERY ITEMS</p>
-                  <h2 id="grocery-title">식품 기록</h2>
+                  <h2 id="grocery-title">식품 등록</h2>
                 </div>
                 <span class="heading-icon" aria-hidden="true">◌</span>
               </div>
@@ -131,11 +131,16 @@
                   </select>
                   <button id="add-grocery-item" class="secondary-button" type="button">추가</button>
                 </div>
+                <div class="grocery-owner-row">
+                  <label class="grocery-owner-label" for="grocery-owner">주인</label>
+                  <select id="grocery-owner" class="text-input select-input owner-input"></select>
+                  <span class="grocery-owner-hint">기본은 결제한 사람이고, 다 같이 먹을 거면 공용으로 골라요.</span>
+                </div>
                 <div id="grocery-draft-list" class="grocery-draft-list"></div>
               </div>
 
-              <button id="add-grocery-items" class="primary-button" type="submit">
-                식품 추가<span aria-hidden="true">→</span>
+              <button id="add-grocery-expense" class="primary-button" type="submit" formnovalidate>
+                  식품 등록하기<span aria-hidden="true">→</span>
               </button>
             </form>
           </div>
@@ -210,6 +215,18 @@
               </div>
               <p id="menu-suggestion-text" class="menu-suggestion-text"></p>
             </section>
+          </section>
+
+          <section class="card fridge-stats-card" aria-labelledby="fridge-stats-title">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="section-kicker">FRIDGE BY MEMBER</p>
+                <h2 id="fridge-stats-title">사람별 냉장고 기록</h2>
+              </div>
+              <span class="heading-icon" aria-hidden="true">%</span>
+            </div>
+            <p class="section-description">폐기율은 다 먹거나 버린 식품 중에서 버린 비율이에요. 보관 중인 식품은 빼고 계산해요.</p>
+            <div id="fridge-stats" class="fridge-stats-list"></div>
           </section>
 
           <section class="card shopping-card" aria-labelledby="shopping-title">

@@ -22,6 +22,8 @@ const elements = {
   groceryStorageType: document.querySelector("#grocery-storage-type"),
   addGroceryItem: document.querySelector("#add-grocery-item"),
   groceryDraftList: document.querySelector("#grocery-draft-list"),
+  groceryOwner: document.querySelector("#grocery-owner"),
+  fridgeStats: document.querySelector("#fridge-stats"),
   payer: document.querySelector("#payer"),
   splitParticipants: document.querySelector("#split-participants"),
   memberList: document.querySelector("#member-list"),
@@ -52,6 +54,9 @@ let fridgeItems = [];
 let shoppingList = [];
 let settlement;
 let groceryDraftItems = [];
+let fridgeStats = [];
+// 주인 칸을 직접 바꿨는지. 안 바꿨으면 결제한 사람을 따라간다.
+let groceryOwnerTouched = false;
 
 function formatWon(amount) {
   return `₩${wonFormatter.format(amount)}`;
@@ -83,6 +88,7 @@ async function refreshState() {
   fridgeItems = state.fridgeItems;
   shoppingList = state.shoppingList;
   settlement = state.settlement;
+  fridgeStats = await api.getFridgeStats();
   render();
 }
 
@@ -158,6 +164,25 @@ function renderMemberEditor() {
     row.append(removeButton);
     elements.memberList.append(row);
   });
+}
+
+// 주인 선택 칸에 "공용"(주인 없음)과 멤버 이름을 채운다.
+function fillOwnerOptions(select, selected) {
+  select.replaceChildren();
+  const noOwner = createElement("option", "", "공용");
+  noOwner.value = "";
+  select.append(noOwner);
+  members.forEach((name) => {
+    const option = createElement("option", "", name);
+    option.value = name;
+    select.append(option);
+  });
+  select.value = selected === "" || members.includes(selected) ? selected : "";
+}
+
+function renderGroceryOwner() {
+  const previous = elements.groceryOwner.value;
+  fillOwnerOptions(elements.groceryOwner, groceryOwnerTouched ? previous : elements.payer.value);
 }
 
 function renderParticipantControls() {
@@ -427,6 +452,7 @@ function renderGroceryDrafts() {
           item.category,
           item.storageType === "room-temperature" ? "실온 보관" : "냉장 보관",
           item.expirationDate ? `기한 ${item.expirationDate}` : "기한 미입력",
+          `주인 ${item.owner || "공용"}`,
         ]
           .filter(Boolean)
           .join(" · "),
@@ -518,6 +544,16 @@ function renderFridge() {
         `${purchasedDate ? `${purchasedDate} 구매 · ` : ""}${expiryText}`,
       ),
     );
+    // 주인은 등록한 뒤에도 바꿀 수 있다
+    const ownerLabel = createElement("label", "fridge-owner", "주인");
+    const ownerSelect = createElement("select", "fridge-owner-select");
+    ownerSelect.setAttribute("aria-label", `${item.name} 주인`);
+    fillOwnerOptions(ownerSelect, item.owner ?? "");
+    ownerSelect.addEventListener("change", () => {
+      void runApiAction(() => api.setFridgeOwner(item.id, ownerSelect.value));
+    });
+    ownerLabel.append(ownerSelect);
+    details.append(ownerLabel);
 
     const actions = createElement("div", "fridge-item-actions");
     if (item.status === "available") {
@@ -570,6 +606,36 @@ function renderFridge() {
   });
 }
 
+// 계산 규칙 5번: 사람별 냉장고 점유 (서버 GET /api/fridge/stats 결과를 보여준다)
+function renderFridgeStats() {
+  elements.fridgeStats.replaceChildren();
+  if (fridgeStats.every((row) => row.total === 0)) {
+    elements.fridgeStats.append(
+      createElement("p", "empty-state", "식품을 등록하면 사람별 기록이 여기에 쌓여요."),
+    );
+    return;
+  }
+  fridgeStats.forEach((row) => {
+    const line = createElement("div", "fridge-stats-row");
+    const info = createElement("div", "fridge-stats-info");
+    info.append(
+      createElement("span", "fridge-stats-name", row.name),
+      createElement(
+        "span",
+        "fridge-stats-counts",
+        `등록 ${row.total} · 보관 중 ${row.available} · 다 먹음 ${row.consumed} · 폐기 ${row.discarded}`,
+      ),
+    );
+    const rate = createElement(
+      "span",
+      `fridge-stats-rate${row.discardRate !== null && row.discardRate >= 50 ? " is-high" : ""}`,
+      row.discardRate === null ? "폐기율 -" : `폐기율 ${row.discardRate}%`,
+    );
+    line.append(info, rate);
+    elements.fridgeStats.append(line);
+  });
+}
+
 function updateFridgeItemStatus(itemId, status) {
   void runApiAction(() => api.setFridgeStatus(itemId, status));
 }
@@ -603,11 +669,13 @@ function render() {
   renderMemberEditor();
   renderParticipantControls();
   renderExpenseCategories();
+  renderGroceryOwner();
   renderSettlement();
   renderExpenses();
   renderMonthlyCategoryTotals();
   renderGroceryDrafts();
   renderFridge();
+  renderFridgeStats();
   renderShoppingList();
 }
 
@@ -684,6 +752,14 @@ elements.addExpenseCategory.addEventListener("click", () => {
   });
 });
 
+elements.payer.addEventListener("change", () => {
+  if (!groceryOwnerTouched) elements.groceryOwner.value = elements.payer.value;
+});
+
+elements.groceryOwner.addEventListener("change", () => {
+  groceryOwnerTouched = true;
+});
+
 elements.addGroceryItem.addEventListener("click", () => {
   const name = elements.groceryName.value.trim();
   if (name === "") {
@@ -698,6 +774,7 @@ elements.addGroceryItem.addEventListener("click", () => {
       name,
       expirationDate: elements.groceryExpiration.value,
       storageType: elements.groceryStorageType.value,
+      owner: elements.groceryOwner.value,
       category: "",
     },
   ];
@@ -710,13 +787,13 @@ elements.addGroceryItem.addEventListener("click", () => {
 
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
+  const title = elements.expenseName.value.trim();
   const rosterError = getRosterError();
   if (rosterError) {
     showNotice(rosterError);
     return;
   }
 
-  const title = elements.expenseName.value.trim();
   const amount = Number(elements.expenseAmount.value);
   const payer = elements.payer.value;
   const participants = Array.from(
@@ -767,15 +844,17 @@ elements.groceryForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const items = groceryDraftItems.map(({ name, expirationDate, storageType }) => ({
+  const items = groceryDraftItems.map(({ name, expirationDate, storageType, owner }) => ({
     name,
     expirationDate,
     storageType,
+    owner,
   }));
   void runApiAction(async () => {
     await api.addFridgeItems(items);
     elements.groceryForm.reset();
     groceryDraftItems = [];
+    groceryOwnerTouched = false;
     renderGroceryDrafts();
   });
 });

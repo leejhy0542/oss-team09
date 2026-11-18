@@ -22,7 +22,16 @@ export function validateMembers(members) {
   return trimmed;
 }
 
-export function validateGroceryItem(item) {
+// owner(주인)는 비우거나("" = 공용) 멤버 중 한 명이어야 한다.
+export function validateOwner(owner, members) {
+  if (owner === undefined || owner === "") return owner;
+  if (typeof owner !== "string" || !members.includes(owner)) {
+    throw bad("주인은 멤버 중 한 명이거나 공용이어야 합니다.");
+  }
+  return owner;
+}
+
+export function validateGroceryItem(item, members = []) {
   if (!item || typeof item !== "object") throw bad("식품 정보가 올바르지 않습니다.");
   if (!isName(item.name, 50)) throw bad("식품 이름은 1~50자로 입력해 주세요.");
   const expirationDate = item.expirationDate ?? "";
@@ -33,7 +42,8 @@ export function validateGroceryItem(item) {
   if (!["refrigerated", "room-temperature"].includes(storageType)) {
     throw bad("보관 방법은 냉장 또는 실온이어야 합니다.");
   }
-  return { name: item.name.trim(), expirationDate, storageType };
+  const owner = validateOwner(item.owner, members);
+  return { name: item.name.trim(), expirationDate, storageType, ...(owner === undefined ? {} : { owner }) };
 }
 
 export function validateExpense(
