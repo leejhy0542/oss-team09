@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { calculateMinimumTransfers } from "../Calcul.js";
 import { selectExpiringIngredients } from "./menu/menu-rules.js";
+import { calculateFridgeStats } from "./fridge-stats.js";
 import {
   calculateBalances,
   getExpiryStatus,
@@ -15,6 +16,7 @@ import {
   HttpError,
   validateExpense,
   validateGroceryItem,
+  validateOwner,
   validateMembers,
   validateTransfer,
 } from "./validate.js";
@@ -101,6 +103,8 @@ export function createApp({ store, llm, now = () => new Date() }) {
       const newFridgeItems = input.groceryItems.map((item) => ({
         id: randomUUID(),
         ...item,
+        // 주인을 따로 고르지 않았으면 결제한 사람이 주인
+        owner: item.owner ?? input.payer,
         purchasedAt: createdAt,
         expenseId: created.id,
         status: "available",
@@ -166,7 +170,8 @@ export function createApp({ store, llm, now = () => new Date() }) {
     const purchasedAt = now().toISOString();
     const created = inputs.map((input) => ({
       id: randomUUID(),
-      ...validateGroceryItem(input),
+      owner: "",
+      ...validateGroceryItem(input, store.get().members),
       purchasedAt,
       expenseId: "",
       status: "available",
@@ -181,21 +186,36 @@ export function createApp({ store, llm, now = () => new Date() }) {
     res.status(201).json(Array.isArray(req.body?.items) ? created : created[0]);
   });
 
+  // 상태(status)나 주인(owner)을 바꾼다. 둘 중 하나만 보내도 된다.
   api.patch("/fridge/:id", async (req, res) => {
-    const { status } = req.body ?? {};
-    if (!FRIDGE_STATUSES.includes(status)) {
+    const { status, owner } = req.body ?? {};
+    if (status === undefined && owner === undefined) {
+      throw new HttpError(400, "바꿀 상태나 주인을 보내 주세요.");
+    }
+    if (status !== undefined && !FRIDGE_STATUSES.includes(status)) {
       throw new HttpError(400, "상태는 available, consumed, discarded 중 하나여야 합니다.");
     }
     let updated;
     await store.update((s) => {
       const item = s.fridgeItems.find((i) => i.id === req.params.id);
       if (!item) throw new HttpError(404, "식품을 찾을 수 없습니다.");
-      // 다 먹음·폐기로 바꾸면 바꾼 시각을 남기고, 보관 중으로 되돌리면(취소) 지운다
-      const { statusChangedAt, ...rest } = item;
-      updated = status === "available" ? { ...rest, status } : { ...rest, status, statusChangedAt: now().toISOString() };
+      updated = { ...item };
+      if (owner !== undefined) updated.owner = validateOwner(owner, s.members);
+      if (status !== undefined) {
+        // 다 먹음·폐기로 바꾸면 바꾼 시각을 남기고, 보관 중으로 되돌리면(취소) 지운다
+        delete updated.statusChangedAt;
+        updated.status = status;
+        if (status !== "available") updated.statusChangedAt = now().toISOString();
+      }
       return { ...s, fridgeItems: s.fridgeItems.map((i) => (i.id === item.id ? updated : i)) };
     });
     res.json(updated);
+  });
+
+  // 계산 규칙 5번: 사람별 냉장고 점유. 7일 지나 목록에서 숨긴 식품도 기록으로 함께 센다.
+  api.get("/fridge/stats", (req, res) => {
+    const { members, fridgeItems } = store.get();
+    res.json(calculateFridgeStats(members, fridgeItems));
   });
 
   // 임박 식품으로 한 줄 메뉴 제안 (LLM 자리).
