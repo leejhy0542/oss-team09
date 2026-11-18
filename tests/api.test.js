@@ -151,3 +151,34 @@ test("지출 없이 식품만 등록해도 냉장고에 들어가고 장보기 �
   assert.deepEqual((await call("GET", "/shopping-list")).body.map((i) => i.name), ["휴지"]);
   assert.equal((await call("POST", "/fridge", { items: [] })).status, 400);
 });
+
+test("식품 주인: 기본은 결제자, 따로 고를 수 있고 나중에 바꿀 수 있다", async () => {
+  const before = (await call("GET", "/fridge/stats")).body;
+  await call("POST", "/expenses", {
+    title: "편의점", amount: 3000, payer: "서준", participants: ["민지", "서준"],
+    groceryItems: [{ name: "요거트" }, { name: "주스", owner: "하은" }, { name: "생수", owner: "" }],
+  });
+  const fridge = (await call("GET", "/fridge")).body;
+  const byName = (name) => fridge.find((i) => i.name === name);
+  assert.equal(byName("요거트").owner, "서준");
+  assert.equal(byName("주스").owner, "하은");
+  assert.equal(byName("생수").owner, "");
+
+  // 식품만 등록하면 기본은 공용(주인 없음), 골랐으면 그 사람
+  const [plain, owned] = (await call("POST", "/fridge", { items: [{ name: "잼" }, { name: "버터", owner: "민지" }] })).body;
+  assert.equal(plain.owner, "");
+  assert.equal(owned.owner, "민지");
+
+  // 주인 바꾸기, 멤버가 아니면 거부
+  assert.equal((await call("PATCH", `/fridge/${plain.id}`, { owner: "하은" })).body.owner, "하은");
+  assert.equal((await call("PATCH", `/fridge/${plain.id}`, { owner: "없는사람" })).status, 400);
+  assert.equal((await call("PATCH", `/fridge/${plain.id}`, {})).status, 400);
+  assert.equal((await call("POST", "/fridge", { name: "x", owner: "없는사람" })).status, 400);
+
+  const after = (await call("GET", "/fridge/stats")).body;
+  const total = (rows, name) => rows.find((r) => r.name === name)?.total ?? 0;
+  assert.equal(total(after, "서준") - total(before, "서준"), 1);
+  assert.equal(total(after, "하은") - total(before, "하은"), 2);
+  assert.equal(total(after, "민지") - total(before, "민지"), 1);
+  assert.equal(total(after, "공용") - total(before, "공용"), 1);
+});

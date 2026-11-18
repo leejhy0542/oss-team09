@@ -1096,6 +1096,97 @@ a:focus-visible {
   font-size: 10px;
 }
 
+/* 사람별 냉장고 기록 (계산 규칙 5번) */
+.grocery-owner-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.grocery-owner-label {
+  color: #45554b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.grocery-owner-row .owner-input {
+  width: 140px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.grocery-owner-hint {
+  color: #929c93;
+  font-size: 11px;
+}
+
+.fridge-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #929c93;
+  font-size: 10px;
+}
+
+.fridge-owner-select {
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+.fridge-stats-list {
+  display: grid;
+  gap: 7px;
+}
+
+.fridge-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: #f7f9f6;
+}
+
+.fridge-stats-info {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fridge-stats-name {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fridge-stats-counts {
+  color: #68766d;
+  font-size: 11px;
+}
+
+.fridge-stats-rate {
+  flex: 0 0 auto;
+  color: #316749;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.fridge-stats-rate.is-high {
+  color: #a75b4b;
+}
+
 @media (max-width: 760px) {
   .page-shell {
     width: min(560px, calc(100% - 32px));
@@ -1154,12 +1245,16 @@ a:focus-visible {
     grid-row: 5;
   }
 
-  .shopping-card {
+  .fridge-stats-card {
     grid-row: 6;
   }
 
-  .members-card {
+  .shopping-card {
     grid-row: 7;
+  }
+
+  .members-card {
+    grid-row: 8;
   }
 
   .grocery-entry-fields {
